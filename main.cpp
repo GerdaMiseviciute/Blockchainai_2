@@ -87,7 +87,7 @@ struct Blokas
 };
 int main()
 {
-    srand(static_cast<unsigned>(time(NULL)));
+    srand(static_cast<unsigned>(SEED));
     SetConsoleCP(CP_UTF8);        // konsolės įvestis → UTF-8
     SetConsoleOutputCP(CP_UTF8);
     int choice;
@@ -370,7 +370,7 @@ int main()
                 cout<<"Transakcijų: "<<is_viso_transakciju<<endl;
                 cout<<"Įtrauktos transakcijos: "<<itrauktos_transakcijos<<endl;
                 cout<<"Neįtrauktos transakcijos: "<<is_viso_transakciju-itrauktos_transakcijos<<endl;
-                cout<<"Į blokų grandinę itraukta "<<blockchain.size()<<" blokų"<<endl;
+                cout<<"Į blokų grandinę itraukta "<<blockchain.size()<<" blokai"<<endl;
                 cout<<"Pradinė lėšų suma: "<<pradine_balansu_suma<<endl;
                 for(int i=0; i<vartotojai.size(); i++)
                     galutine_balansu_suma+=vartotojai["PUB"+std::to_string(i+1)].balance;
