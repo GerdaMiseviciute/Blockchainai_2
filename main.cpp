@@ -19,7 +19,6 @@ using namespace chrono;
 using namespace boost::multiprecision;
 
 const uint64_t SEED = 123456789ULL;
-std::mt19937_64 generatorius(SEED);
 
 string funkcija(const string& s)
 {
@@ -53,12 +52,26 @@ string funkcija(const string& s)
     return ss.str();
 }
 
+struct UTXO
+{
+    string txId;
+    size_t suma;
+};
 struct Vartotojas
 {
     string vardas;
     string public_key;
-    size_t balance;
-    // deque<Transakcija>vartotojo_transakcijos;
+    size_t pradinis_balansas;
+    vector<UTXO> isvestys;
+    size_t balansas()
+    {
+        size_t suma=0;
+        for(int i=0; i<isvestys.size(); i++)
+        {
+            suma+=isvestys[i].suma;
+        }
+        return suma;
+    }
 };
 struct Transakcija
 {
@@ -194,7 +207,7 @@ int main()
                     sender="PUB"+std::to_string(rand()%1000+1);
                     receiver="PUB"+std::to_string(rand()%1000+1);
                 } while (sender==receiver);
-                size_t amount=rand()%vartotojai[sender].balance+1;
+                size_t amount=rand()%vartotojai[sender].pradinis_balansas+1;
                 string transakcijos_id=funkcija(sender+"|"+receiver+"|"+std::to_string(amount)+"|"+std::to_string(i+1));
                 transakcijos.push_back({sender, receiver, amount, i+1, transakcijos_id});
                 fr1<<left<<setw(25)<<sender<<setw(20)<<receiver<<setw(20)<<amount<<setw(10)<<i+1<<setw(20)<<transakcijos_id<<endl;
@@ -221,6 +234,7 @@ int main()
                     ss>>vardas>>balansas>>key;
                     pradine_balansu_suma+=balansas;
                     vartotojai[key]={vardas, key, balansas};
+                    vartotojai[key].isvestys.push_back({"Genesis", balansas});
                 }
                 fd.close();
 
@@ -276,10 +290,30 @@ int main()
                             continue;
                         if(t.sender==t.receiver || t.amount<=0)
                             continue;
-                        if(vartotoju_kopija[t.sender].balance<t.amount)
+                        // if(vartotoju_kopija[t.sender].pradinis_balansas<t.amount)
+                        //     continue;
+                        if(vartotoju_kopija[t.sender].balansas()<t.amount)
                             continue;
-                        vartotoju_kopija[t.sender].balance-=t.amount;
-                        vartotoju_kopija[t.receiver].balance+=t.amount;
+                        vartotoju_kopija[t.receiver].isvestys.push_back({t.transaction_id, t.amount});
+                        size_t suma=t.amount;
+                        while(suma>0)
+                        {
+                            if(vartotoju_kopija[t.sender].isvestys.back().suma>=suma)
+                            {
+                                size_t graza=vartotoju_kopija[t.sender].isvestys.back().suma-suma;
+                                vartotoju_kopija[t.sender].isvestys.pop_back();
+                                if(graza>0)
+                                    vartotoju_kopija[t.sender].isvestys.push_back({"Grąža", graza});
+                                suma=0;
+                            }
+                            else
+                            {
+                                suma-=vartotoju_kopija[t.sender].isvestys.back().suma;
+                                vartotoju_kopija[t.sender].isvestys.pop_back();
+                            }
+                        }
+                        // vartotoju_kopija[t.sender].pradinis_balansas-=t.amount;
+                        // vartotoju_kopija[t.receiver].pradinis_balansas+=t.amount;
                         naujas_blokas.bloko_transakcijos.push_back(t);
                     }
                     naujas_blokas.version=1;
@@ -314,7 +348,6 @@ int main()
                         for(int i=0; i<naujas_blokas.bloko_transakcijos.size(); i++)
                         {
                             const Transakcija t=naujas_blokas.bloko_transakcijos[i];
-                            
                             auto siuntejas = vartotoju_kopija1.find(t.sender);
                             auto gavejas = vartotoju_kopija1.find(t.receiver);
 
@@ -328,16 +361,42 @@ int main()
                                 galioja = false;
                                 break;
                             }
-                            if (siuntejas->second.balance < t.amount)
+                            if(siuntejas->second.balansas()<t.amount)
                             {
-                                galioja = false;
+                                galioja=false;
                                 break;
                             }
-                            siuntejas->second.balance -= t.amount;
-                            gavejas->second.balance += t.amount;
+                            // if (siuntejas->second.pradinis_balansas < t.amount)
+                            // {
+                            //     galioja = false;
+                            //     break;
+                            // }
+
+                            gavejas->second.isvestys.push_back({t.transaction_id, t.amount});
+                            size_t suma=t.amount;
+                            while(suma>0)
+                            {
+                                if(siuntejas->second.isvestys.back().suma>=suma)
+                                {
+                                    size_t graza=siuntejas->second.isvestys.back().suma-suma;
+                                    siuntejas->second.isvestys.pop_back();
+                                    if(graza>0)
+                                        siuntejas->second.isvestys.push_back({"Grąža", graza});
+                                    suma=0;
+                                }
+                                else
+                                {
+                                    suma-=siuntejas->second.isvestys.back().suma;
+                                    siuntejas->second.isvestys.pop_back();
+                                }
+                            }
+                            // siuntejas->second.pradinis_balansas -= t.amount;
+                            // gavejas->second.pradinis_balansas += t.amount;
+
                             // auto it = find_if(transakciju_kopija1.begin(), transakciju_kopija1.end(), [&t](const Transakcija& x){return x.transaction_id == t.transaction_id;});
                             // if(it!=transakciju_kopija1.end())
                             //     transakciju_kopija1.erase(it);
+                            
                             if(i>0)
                                 visu_transakciju_id1+="|";
                             visu_transakciju_id1+=t.transaction_id;
@@ -359,8 +418,6 @@ int main()
                             cout<<"Bandymų skaičius: "<<bandymai<<endl;
                             cout<<"Laikas: "<<laikas.count()<<endl<<endl;
                         }
-                        
-
                     }
                 }
                 
@@ -373,7 +430,9 @@ int main()
                 cout<<"Į blokų grandinę itraukta "<<blockchain.size()<<" blokai"<<endl;
                 cout<<"Pradinė lėšų suma: "<<pradine_balansu_suma<<endl;
                 for(int i=0; i<vartotojai.size(); i++)
-                    galutine_balansu_suma+=vartotojai["PUB"+std::to_string(i+1)].balance;
+                    galutine_balansu_suma+=vartotojai["PUB"+std::to_string(i+1)].balansas();
+                // for(int i=0; i<vartotojai.size(); i++)
+                //     galutine_balansu_suma+=vartotojai["PUB"+std::to_string(i+1)].pradinis_balansas;
                 cout<<"Galutinė lėšų suma: "<<galutine_balansu_suma<<endl;
                 cout<<"Bendras laikas: "<<pilnas_laikas.count()<<endl;
                 break;
