@@ -123,13 +123,14 @@ int main()
     cout<<"===Meniu==="<<endl;
     cout<<"1. Generuoti vartotojus ir transakcijas"<<endl;
     cout<<"2. Kasti blokus"<<endl;
+    cout<<"3. Testuoti merkle tree"<<endl;
     while(true)
     {
         try
         {
             cin>>choice;
-            if(cin.fail() || choice<1 || choice>2)
-                throw std::runtime_error("Iveskite skaiciu 1-2: ");
+            if(cin.fail() || choice<1 || choice>3)
+                throw std::runtime_error("Iveskite skaiciu 1-3: ");
 
             cin.ignore(1000, '\n');
             break;
@@ -358,7 +359,7 @@ int main()
 
                     //patikrinimas
                     vector<string>kopijos_lapai;
-                    if(naujas_blokas.prev_hash==blockchain[blockchain.size()-1].hash() && naujas_blokas.hash().starts_with(std::string(naujas_blokas.difficulty,'0')))
+                    if(naujas_blokas.prev_hash==blockchain[blockchain.size()-1].hash() && naujas_blokas.hash().starts_with(std::string(naujas_blokas.difficulty,'0')) && naujas_blokas.bloko_transakcijos.size()<=100)
                     {
                         deque<Transakcija>transakciju_kopija1=transakcijos;
                         map<string, Vartotojas>vartotoju_kopija1=vartotojai;
@@ -370,7 +371,16 @@ int main()
                             const Transakcija t=naujas_blokas.bloko_transakcijos[i];
                             auto siuntejas = vartotoju_kopija1.find(t.sender);
                             auto gavejas = vartotoju_kopija1.find(t.receiver);
-
+                            if(count_if(naujas_blokas.bloko_transakcijos.begin(), naujas_blokas.bloko_transakcijos.end(), [&t](const Transakcija& l) { return l.transaction_id==t.transaction_id; })!=1)
+                            {
+                                galioja = false;
+                                break;
+                            }
+                            if(t.transaction_id.size()!=64 && all_of(t.transaction_id.begin(), t.transaction_id.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); })==0)
+                            {
+                                galioja = false;
+                                break;
+                            }
                             if (siuntejas == vartotoju_kopija1.end() || gavejas == vartotoju_kopija1.end())
                             {
                                 galioja = false;
@@ -381,7 +391,7 @@ int main()
                                 galioja = false;
                                 break;
                             }
-                            if(siuntejas->second.balansas()<t.amount)
+                            if(siuntejas->second.balansas()<t.amount && siuntejas->second.balansas()+t.amount<=SIZE_MAX && naujas_blokas.version==1)
                             {
                                 galioja=false;
                                 break;
@@ -453,6 +463,47 @@ int main()
                 cout<<"Galutinė lėšų suma: "<<galutine_balansu_suma<<endl;
                 cout<<"Bendras laikas: "<<pilnas_laikas.count()<<endl;
                 break;
+        }
+        case 3:
+        {
+            //merkle tikrinimas
+            vector<string>lapai;
+            ifstream fd("transakcijos.txt");
+            string eil;
+            getline(fd, eil);
+            while(getline(fd, eil))
+            {
+                if (eil.empty()) 
+                    continue;
+                istringstream ss1(eil);
+                string siunt, gav, transaction_id;
+                size_t suma, seq;
+                ss1>>siunt>>gav>>suma>>seq>>transaction_id;
+                lapai.push_back(transaction_id);
+                if(lapai.size()>5)
+                    break;
+                if(lapai.size()==1 || lapai.size()==2 || lapai.size()==3 || lapai.size()==5)
+                {
+                    if(lapai.size()==1)
+                        if(lapai[0]==merkle_root(lapai))
+                            cout<<"SU 1 TRANSAKCIJA VEIKIA TEISINGAI"<<endl;
+                        else cout<<"SU 1 TRANSAKCIJA VEIKIA NETEISINGAI"<<endl;
+                    if(lapai.size()==2)
+                        if(funkcija(lapai[0]+"|"+lapai[1])==merkle_root(lapai))
+                            cout<<"SU 2 TRANSAKCIJOM VEIKIA TEISINGAI"<<endl;
+                        else cout<<"SU 1 TRANSAKCIJOM VEIKIA NETEISINGAI"<<endl;
+                    if(lapai.size()==3)
+                        if(funkcija(funkcija(lapai[0]+"|"+lapai[1])+"|"+funkcija(lapai[2]+"|"+lapai[2]))==merkle_root(lapai))
+                            cout<<"SU 3 TRANSAKCIJOM VEIKIA TEISINGAI"<<endl;
+                        else cout<<"SU 3 TRANSAKCIJOM VEIKIA NETEISINGAI"<<endl;
+                    if(lapai.size()==5)
+                        if(funkcija(funkcija(funkcija(lapai[0]+"|"+lapai[1])+"|"+funkcija(lapai[2]+"|"+lapai[3]))+"|"+funkcija(funkcija(lapai[4]+"|"+lapai[4])+"|"+funkcija(lapai[4]+"|"+lapai[4])))==merkle_root(lapai))
+                            cout<<"SU 5 TRANSAKCIJOM VEIKIA TEISINGAI"<<endl;
+                        else cout<<"SU 5 TRANSAKCIJOM VEIKIA NETEISINGAI"<<endl;
+                }
+            }
+            fd.close();
+            break;
         }
     }
     return 0;
