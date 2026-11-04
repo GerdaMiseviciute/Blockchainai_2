@@ -81,7 +81,6 @@ struct Transakcija
     size_t sequence;
     string transaction_id; //=originali_funkcija(sender+receiver+std::to_string(amount)+std::to_string(sequence));
 };
-
 struct Blokas
 {
     string prev_hash;
@@ -98,6 +97,23 @@ struct Blokas
         return funkcija(prev_hash+"|"+std::to_string(timestamp)+"|"+std::to_string(version)+"|"+tx_root+"|"+std::to_string(nonce)+"|"+std::to_string(difficulty));
     }
 };
+string merkle_root(vector<string>hashes)
+{
+    if(hashes.empty())
+        return "";
+    while(hashes.size()>1)
+    {
+        vector<string>naujas_lygis;
+        for(int i=0; i<hashes.size(); i+=2)
+        {
+            if(i+1==hashes.size())
+                naujas_lygis.push_back(funkcija(hashes[i]+"|"+hashes[i]));
+            else naujas_lygis.push_back(funkcija(hashes[i]+"|"+hashes[i+1]));
+        }
+        hashes=naujas_lygis;
+    }
+    return hashes[0];
+}
 int main()
 {
     srand(static_cast<unsigned>(SEED));
@@ -281,6 +297,7 @@ int main()
                     auto start = high_resolution_clock::now();
                     naujas_blokas.prev_hash=blockchain[blockchain.size()-1].hash();
                     naujas_blokas.version=1;
+                    vector<string>lapai;
                     while(naujas_blokas.bloko_transakcijos.size()<100 && !transakciju_kopija.empty())
                     {
                         size_t transakcijos_nr=rand()%transakciju_kopija.size();
@@ -294,6 +311,7 @@ int main()
                         //     continue;
                         if(vartotoju_kopija[t.sender].balansas()<t.amount)
                             continue;
+                        lapai.push_back(t.transaction_id);
                         vartotoju_kopija[t.receiver].isvestys.push_back({t.transaction_id, t.amount});
                         size_t suma=t.amount;
                         while(suma>0)
@@ -317,14 +335,16 @@ int main()
                         naujas_blokas.bloko_transakcijos.push_back(t);
                     }
                     naujas_blokas.version=1;
-                    string visu_transakciju_id;
-                    for(int i=0; i<naujas_blokas.bloko_transakcijos.size(); i++)
-                    {
-                        if(i>0)
-                            visu_transakciju_id+="|";
-                        visu_transakciju_id+=naujas_blokas.bloko_transakcijos[i].transaction_id;
-                    }
-                    naujas_blokas.tx_root=funkcija(visu_transakciju_id);
+                    // string visu_transakciju_id;
+                    // for(int i=0; i<naujas_blokas.bloko_transakcijos.size(); i++)
+                    // {
+                    //     if(i>0)
+                    //         visu_transakciju_id+="|";
+                    //     visu_transakciju_id+=naujas_blokas.bloko_transakcijos[i].transaction_id;
+                    // }
+                    // naujas_blokas.tx_root=funkcija(visu_transakciju_id);
+                    // cout<<merkle_root(lapai)<<endl;
+                    naujas_blokas.tx_root=merkle_root(lapai);
                     naujas_blokas.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                     naujas_blokas.nonce=0;
                     size_t bandymai=0;
@@ -337,7 +357,7 @@ int main()
                     duration<double> laikas=end-start;
 
                     //patikrinimas
-
+                    vector<string>kopijos_lapai;
                     if(naujas_blokas.prev_hash==blockchain[blockchain.size()-1].hash() && naujas_blokas.hash().starts_with(std::string(naujas_blokas.difficulty,'0')))
                     {
                         deque<Transakcija>transakciju_kopija1=transakcijos;
@@ -392,16 +412,13 @@ int main()
                             }
                             // siuntejas->second.pradinis_balansas -= t.amount;
                             // gavejas->second.pradinis_balansas += t.amount;
-
-                            // auto it = find_if(transakciju_kopija1.begin(), transakciju_kopija1.end(), [&t](const Transakcija& x){return x.transaction_id == t.transaction_id;});
-                            // if(it!=transakciju_kopija1.end())
-                            //     transakciju_kopija1.erase(it);
                             
-                            if(i>0)
-                                visu_transakciju_id1+="|";
-                            visu_transakciju_id1+=t.transaction_id;
+                            // if(i>0)
+                            //     visu_transakciju_id1+="|";
+                            // visu_transakciju_id1+=t.transaction_id;
+                            kopijos_lapai.push_back(t.transaction_id);
                         }
-                        if(galioja && naujas_blokas.tx_root==funkcija(visu_transakciju_id1))
+                        if(galioja && naujas_blokas.tx_root==merkle_root(kopijos_lapai))
                         {
                             itrauktos_transakcijos+=naujas_blokas.bloko_transakcijos.size();
                             blockchain.push_back(naujas_blokas);
