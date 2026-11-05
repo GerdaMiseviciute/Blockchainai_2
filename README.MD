@@ -138,7 +138,7 @@ Atliekami bendri teisingumo testai, skirti patikrinti Merkle medžio sudarymą, 
 
 ![alt text](image.png)
 
-## 6. Kodėl tai nėra tikras P2P konsensusas?
+## Kodėl tai nėra tikras P2P konsensusas?
 
 Šiame projekte realizuojama blokų kasimo konkurencijos simuliacija, tačiau ji nėra lygiavertė tikram P2P blokų grandinės konsensusui.
 
