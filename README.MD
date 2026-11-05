@@ -17,10 +17,32 @@ Programa:
 7.  Išsaugo sugeneruotų vartotojų ir transakcijų duomenis tekstiniuose
     failuose.
 
+Kiekvienas vartotojas turi:
+- Unikalų identifikatorių / vardą.
+- Viešojo rakto imitaciją (`public_key`).
+- Pradinį lėšų kiekį.
+- Išvesčių vektorių
+
+Transakcija apima:
+- Siuntėją.
+- Gavėją.
+- Perduodamą sumą.
+- Transakcijos identifikatorių (`transaction_id`).
+- Sekos numerį (`sequence`).
 
 Viename įprastame bloke numatyta iki 100 transakcijų. `difficulty = 3`
 reiškia, kad bloko maiša turi prasidėti trimis šešioliktainiais nuliais
 (`000`).
+
+Bloko antraštėje saugoma:
+- `prev_hash` – ankstesnio bloko maišos reikšmė.
+- `timestamp` – bloko sukūrimo laikas.
+- `version` – bloko versija.
+- `tx_root` – Merkle medžio šakninė maišos reikšmė.
+- `nonce` – kasimo metu keičiamas skaičius.
+- `difficulty` – kasimo sudėtingumo parametras.
+
+Bloke taip pat saugomas jo transakcijų vektorius.
 
 ## Maišos funkcija
 
@@ -153,3 +175,24 @@ Pagrindiniai skirtumai:
 4. **Nerealizuojami šakų persitvarkymai.** Jei skirtingi tinklo mazgai iškastų skirtingus blokus tame pačiame aukštyje, tikrame tinkle galėtų susidaryti skirtingos grandinės šakos. Šiame projekte toks procesas neimituojamas.
 
 5. **Nerealizuojamas tikras Bitcoin kasimas.** Naudojamas supaprastintas Proof of Work mechanizmas, kuriame tikrinamas nustatytas maišos pradžios nulių skaičius. Nenaudojamas tikras Bitcoin tinklo sudėtingumo reguliavimas, atlygis ar kitos protokolo taisyklės.
+
+# Versija: `v0.3`
+
+Dirbtiniu intelektu bandiau tobulinti transakcijų atrinkimą ir kasimo ciklą, testus.
+
+Nors patobulinus kodą viskas veikia tesisingai, sparta kaip tik sumažėjo.
+
+Pavyzdys prieš patobulinimą:
+![alt text](<Screenshot 2026-11-05 042420.png>)
+
+Pavyzdys po patobulinimo:
+![alt text](<Screenshot 2026-11-05 055002.png>)
+
+Svarbu akcentuoti tai, jog SEED naudojimas užtikrina tos pačios skaičių sekos generavimą kiekvieno programos paleidimo metu, tačiau dėl laiko matavimo skirtumo kandidatų kasime kiekvieną kartą paleidus programą su tais pačiais duomenimis, galime gauti skirtingus blokus grandinėse.
+
+### Dirbtinis intelektas (chatGPT, Perplexity) padėjo:
+- Suprasti užduoties reikalavimus, išsiaiškinti principus
+- Generuoti abstrakčias idėjas
+- Padaryti v0.3 versiją
+- Pildyti README failą
+

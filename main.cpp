@@ -107,6 +107,15 @@ struct Blokas
         return funkcija(prev_hash+"|"+std::to_string(timestamp)+"|"+std::to_string(version)+"|"+tx_root+"|"+std::to_string(nonce)+"|"+std::to_string(difficulty));
     }
 };
+struct Kandidatas {
+    Blokas blokas;
+    deque<Transakcija> transakcijos;
+    map<string, Vartotojas> vartotojai;
+    vector<string> lapai;
+
+    bool iskastas = false;
+    double laikas = 0;
+};
 string merkle_root(vector<string>hashes)
 {
     if(hashes.empty())
@@ -124,45 +133,45 @@ string merkle_root(vector<string>hashes)
     }
     return hashes[0];
 }
-void transakciju_atrinkimas(Blokas& naujas_blokas, vector<Blokas>&blockchain, deque<Transakcija>&transakciju_kopija, map<string, Vartotojas>&vartotoju_kopija, vector<string>&lapai)
+void transakciju_atrinkimas(Kandidatas&k, vector<Blokas>&blockchain)
 {
-    naujas_blokas.prev_hash=blockchain[blockchain.size()-1].hash();
-    naujas_blokas.version=1;
-    while(naujas_blokas.bloko_transakcijos.size()<100 && !transakciju_kopija.empty())
+    k.blokas.prev_hash=blockchain[blockchain.size()-1].hash();
+    k.blokas.version=1;
+    while(k.blokas.bloko_transakcijos.size()<100 && !k.transakcijos.empty())
     {
-        size_t transakcijos_nr=rand()%transakciju_kopija.size();
-        Transakcija t=transakciju_kopija[transakcijos_nr];
-        transakciju_kopija.erase(transakciju_kopija.begin()+transakcijos_nr);
-        if(vartotoju_kopija.find(t.sender)==vartotoju_kopija.end() || vartotoju_kopija.find(t.receiver)==vartotoju_kopija.end())
+        size_t transakcijos_nr=rand()%k.transakcijos.size();
+        Transakcija t=k.transakcijos[transakcijos_nr];
+        k.transakcijos.erase(k.transakcijos.begin()+transakcijos_nr);
+        if(k.vartotojai.find(t.sender)==k.vartotojai.end() || k.vartotojai.find(t.receiver)==k.vartotojai.end())
             continue;
         if(t.sender==t.receiver || t.amount<=0)
             continue;
         // if(vartotoju_kopija[t.sender].pradinis_balansas<t.amount)
         //     continue;
-        if(vartotoju_kopija[t.sender].balansas()<t.amount)
+        if(k.vartotojai[t.sender].balansas()<t.amount)
             continue;
-        lapai.push_back(t.transaction_id);
-        vartotoju_kopija[t.receiver].isvestys.push_back({t.transaction_id, t.amount});
+        k.lapai.push_back(t.transaction_id);
+        k.vartotojai[t.receiver].isvestys.push_back({t.transaction_id, t.amount});
         size_t suma=t.amount;
         while(suma>0)
         {
-            if(vartotoju_kopija[t.sender].isvestys.back().suma>=suma)
+            if(k.vartotojai[t.sender].isvestys.back().suma>=suma)
             {
-                size_t graza=vartotoju_kopija[t.sender].isvestys.back().suma-suma;
-                vartotoju_kopija[t.sender].isvestys.pop_back();
+                size_t graza=k.vartotojai[t.sender].isvestys.back().suma-suma;
+                k.vartotojai[t.sender].isvestys.pop_back();
                 if(graza>0)
-                    vartotoju_kopija[t.sender].isvestys.push_back({"Grąža", graza});
+                    k.vartotojai[t.sender].isvestys.push_back({"Grąža", graza});
                 suma=0;
             }
             else
             {
-                suma-=vartotoju_kopija[t.sender].isvestys.back().suma;
-                vartotoju_kopija[t.sender].isvestys.pop_back();
+                suma-=k.vartotojai[t.sender].isvestys.back().suma;
+                k.vartotojai[t.sender].isvestys.pop_back();
             }
         }
         // vartotoju_kopija[t.sender].pradinis_balansas-=t.amount;
         // vartotoju_kopija[t.receiver].pradinis_balansas+=t.amount;
-        naujas_blokas.bloko_transakcijos.push_back(t);
+        k.blokas.bloko_transakcijos.push_back(t);
     }
 }
 void kasimas(Blokas& naujas_blokas, bool&iskastas, chrono::seconds trukme, double&visas_laikas)
@@ -637,27 +646,35 @@ int main()
             size_t itrauktos_transakcijos=0;
             while(!transakcijos.empty())
             {
-                deque<Transakcija>transakciju_kopija1=transakcijos;
-                deque<Transakcija>transakciju_kopija2=transakcijos;
-                deque<Transakcija>transakciju_kopija3=transakcijos;
-                deque<Transakcija>transakciju_kopija4=transakcijos;
-                deque<Transakcija>transakciju_kopija5=transakcijos;
-                map<string, Vartotojas>vartotoju_kopija1=vartotojai;
-                map<string, Vartotojas>vartotoju_kopija2=vartotojai;
-                map<string, Vartotojas>vartotoju_kopija3=vartotojai;
-                map<string, Vartotojas>vartotoju_kopija4=vartotojai;
-                map<string, Vartotojas>vartotoju_kopija5=vartotojai;
-                Blokas naujas_blokas1;
-                Blokas naujas_blokas2;
-                Blokas naujas_blokas3;
-                Blokas naujas_blokas4;
-                Blokas naujas_blokas5;
-                vector<string>lapai1;
-                vector<string>lapai2;
-                vector<string>lapai3;
-                vector<string>lapai4;
-                vector<string>lapai5;
-                auto start = high_resolution_clock::now();
+                array<Kandidatas, 5> kandidatai;
+                for (auto& k : kandidatai)
+                {
+                    k.transakcijos = transakcijos;
+                    k.vartotojai = vartotojai;
+                }
+                // deque<Transakcija>transakciju_kopija1=transakcijos;
+                // deque<Transakcija>transakciju_kopija2=transakcijos;
+                // deque<Transakcija>transakciju_kopija3=transakcijos;
+                // deque<Transakcija>transakciju_kopija4=transakcijos;
+                // deque<Transakcija>transakciju_kopija5=transakcijos;
+                // map<string, Vartotojas>vartotoju_kopija1=vartotojai;
+                // map<string, Vartotojas>vartotoju_kopija2=vartotojai;
+                // map<string, Vartotojas>vartotoju_kopija3=vartotojai;
+                // map<string, Vartotojas>vartotoju_kopija4=vartotojai;
+                // map<string, Vartotojas>vartotoju_kopija5=vartotojai;
+                // Blokas naujas_blokas1;
+                // Blokas naujas_blokas2;
+                // Blokas naujas_blokas3;
+                // Blokas naujas_blokas4;
+                // Blokas naujas_blokas5;
+                // vector<string>lapai1;
+                // vector<string>lapai2;
+                // vector<string>lapai3;
+                // vector<string>lapai4;
+                // vector<string>lapai5;
+                // auto start = high_resolution_clock::now();
+
+
                 // naujas_blokas.prev_hash=blockchain[blockchain.size()-1].hash();
                 // naujas_blokas.version=1;
                 // while(naujas_blokas1.bloko_transakcijos.size()<100 && !transakciju_kopija.empty())
@@ -697,23 +714,36 @@ int main()
                 //     naujas_blokas.bloko_transakcijos.push_back(t);
                 // }    
                 
-                do
+                auto start = high_resolution_clock::now();
+
+                for (auto& k : kandidatai)
                 {
-                    transakciju_atrinkimas(naujas_blokas1, blockchain, transakciju_kopija1, vartotoju_kopija1, lapai1);
-                    transakciju_atrinkimas(naujas_blokas2, blockchain, transakciju_kopija2, vartotoju_kopija2, lapai2);
-                    transakciju_atrinkimas(naujas_blokas3, blockchain, transakciju_kopija3, vartotoju_kopija3, lapai3);
-                    transakciju_atrinkimas(naujas_blokas4, blockchain, transakciju_kopija4, vartotoju_kopija4, lapai4);
-                    transakciju_atrinkimas(naujas_blokas5, blockchain, transakciju_kopija5, vartotoju_kopija5, lapai5);
-                }while(naujas_blokas1.bloko_transakcijos==naujas_blokas2.bloko_transakcijos ||
-                        naujas_blokas1.bloko_transakcijos==naujas_blokas3.bloko_transakcijos ||
-                        naujas_blokas1.bloko_transakcijos==naujas_blokas4.bloko_transakcijos ||
-                        naujas_blokas1.bloko_transakcijos==naujas_blokas5.bloko_transakcijos ||
-                        naujas_blokas2.bloko_transakcijos==naujas_blokas3.bloko_transakcijos ||
-                        naujas_blokas2.bloko_transakcijos==naujas_blokas4.bloko_transakcijos ||
-                        naujas_blokas2.bloko_transakcijos==naujas_blokas5.bloko_transakcijos ||
-                        naujas_blokas3.bloko_transakcijos==naujas_blokas4.bloko_transakcijos ||
-                        naujas_blokas3.bloko_transakcijos==naujas_blokas5.bloko_transakcijos ||
-                        naujas_blokas4.bloko_transakcijos==naujas_blokas5.bloko_transakcijos);
+                    transakciju_atrinkimas(k, blockchain);
+
+                    k.blokas.tx_root = merkle_root(k.lapai);
+
+                    k.blokas.timestamp =
+                        chrono::duration_cast<chrono::seconds>(
+                            chrono::system_clock::now().time_since_epoch()
+                        ).count();
+                }
+                // do
+                // {
+                //     transakciju_atrinkimas(naujas_blokas1, blockchain, transakciju_kopija1, vartotoju_kopija1, lapai1);
+                //     transakciju_atrinkimas(naujas_blokas2, blockchain, transakciju_kopija2, vartotoju_kopija2, lapai2);
+                //     transakciju_atrinkimas(naujas_blokas3, blockchain, transakciju_kopija3, vartotoju_kopija3, lapai3);
+                //     transakciju_atrinkimas(naujas_blokas4, blockchain, transakciju_kopija4, vartotoju_kopija4, lapai4);
+                //     transakciju_atrinkimas(naujas_blokas5, blockchain, transakciju_kopija5, vartotoju_kopija5, lapai5);
+                // }while(naujas_blokas1.bloko_transakcijos==naujas_blokas2.bloko_transakcijos ||
+                //         naujas_blokas1.bloko_transakcijos==naujas_blokas3.bloko_transakcijos ||
+                //         naujas_blokas1.bloko_transakcijos==naujas_blokas4.bloko_transakcijos ||
+                //         naujas_blokas1.bloko_transakcijos==naujas_blokas5.bloko_transakcijos ||
+                //         naujas_blokas2.bloko_transakcijos==naujas_blokas3.bloko_transakcijos ||
+                //         naujas_blokas2.bloko_transakcijos==naujas_blokas4.bloko_transakcijos ||
+                //         naujas_blokas2.bloko_transakcijos==naujas_blokas5.bloko_transakcijos ||
+                //         naujas_blokas3.bloko_transakcijos==naujas_blokas4.bloko_transakcijos ||
+                //         naujas_blokas3.bloko_transakcijos==naujas_blokas5.bloko_transakcijos ||
+                //         naujas_blokas4.bloko_transakcijos==naujas_blokas5.bloko_transakcijos);
 
                 // string visu_transakciju_id;
                 // for(int i=0; i<naujas_blokas.bloko_transakcijos.size(); i++)
@@ -723,69 +753,137 @@ int main()
                 //     visu_transakciju_id+=naujas_blokas.bloko_transakcijos[i].transaction_id;
                 // }
                 // naujas_blokas.tx_root=funkcija(visu_transakciju_id);
-                // cout<<merkle_root(lapai)<<endl;
-                naujas_blokas1.tx_root=merkle_root(lapai1);
-                naujas_blokas2.tx_root=merkle_root(lapai2);
-                naujas_blokas3.tx_root=merkle_root(lapai3);
-                naujas_blokas4.tx_root=merkle_root(lapai4);
-                naujas_blokas5.tx_root=merkle_root(lapai5);
-                naujas_blokas1.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                naujas_blokas2.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                naujas_blokas3.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                naujas_blokas4.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
-                naujas_blokas5.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+
+                // naujas_blokas1.tx_root=merkle_root(lapai1);
+                // naujas_blokas2.tx_root=merkle_root(lapai2);
+                // naujas_blokas3.tx_root=merkle_root(lapai3);
+                // naujas_blokas4.tx_root=merkle_root(lapai4);
+                // naujas_blokas5.tx_root=merkle_root(lapai5);
+                // naujas_blokas1.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                // naujas_blokas2.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                // naujas_blokas3.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                // naujas_blokas4.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                // naujas_blokas5.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                 
-                bool iskastas1=false, iskastas2=false, iskastas3=false, iskastas4=false, iskastas5=false;
-                auto trukme=chrono::seconds(0);
-                double laikas1=0, laikas2=0, laikas3=0, laikas4=0, laikas5=0;
-                do
+
+                for (int i = 0; i < 5; i++)
                 {
-                    kasimas(naujas_blokas1, iskastas1, chrono::seconds(5), laikas1);
-                    kasimas(naujas_blokas2, iskastas2, chrono::seconds(5), laikas2);
-                    kasimas(naujas_blokas3, iskastas3, chrono::seconds(5), laikas3);
-                    kasimas(naujas_blokas4, iskastas4, chrono::seconds(5), laikas4);
-                    kasimas(naujas_blokas5, iskastas5, chrono::seconds(5), laikas5);
-                    trukme+=chrono::seconds(5);
-                } while((iskastas5==false || iskastas4==false || iskastas3==false || iskastas2==false || iskastas1==false) && trukme<chrono::seconds(100));
-                cout<<laikas1<<" "<<naujas_blokas1.nonce<<endl;
-                cout<<laikas2<<" "<<naujas_blokas2.nonce<<endl;
-                cout<<laikas3<<" "<<naujas_blokas3.nonce<<endl;
-                cout<<laikas4<<" "<<naujas_blokas4.nonce<<endl;
-                cout<<laikas5<<" "<<naujas_blokas5.nonce<<endl;
+                    for (int j = i + 1; j < 5; j++)
+                    {
+                        if (kandidatai[i].blokas.bloko_transakcijos ==
+                            kandidatai[j].blokas.bloko_transakcijos)
+                        {
+                            kandidatai[i].blokas = Blokas{};
+                            kandidatai[i].transakcijos = transakcijos;
+                            kandidatai[i].vartotojai = vartotojai;
+                            kandidatai[i].lapai.clear();
+                            transakciju_atrinkimas(kandidatai[i], blockchain);
+                            kandidatai[i].blokas.tx_root = merkle_root(kandidatai[i].lapai);
+
+                            kandidatai[i].blokas.timestamp =chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                        }
+                    }
+                }
+                // bool iskastas1=false, iskastas2=false, iskastas3=false, iskastas4=false, iskastas5=false;
+                // auto trukme=chrono::seconds(0);
+                // double laikas1=0, laikas2=0, laikas3=0, laikas4=0, laikas5=0;
+                // do
+                // {
+                //     kasimas(naujas_blokas1, iskastas1, chrono::seconds(5), laikas1);
+                //     kasimas(naujas_blokas2, iskastas2, chrono::seconds(5), laikas2);
+                //     kasimas(naujas_blokas3, iskastas3, chrono::seconds(5), laikas3);
+                //     kasimas(naujas_blokas4, iskastas4, chrono::seconds(5), laikas4);
+                //     kasimas(naujas_blokas5, iskastas5, chrono::seconds(5), laikas5);
+                //     trukme+=chrono::seconds(5);
+                // } while((iskastas5==false || iskastas4==false || iskastas3==false || iskastas2==false || iskastas1==false) && trukme<chrono::seconds(100));
+                auto trukme = chrono::seconds(0);
+
+                while (trukme < chrono::seconds(100))
+                {
+                    for (auto& k : kandidatai)
+                    {
+                        if (!k.iskastas)
+                        {
+                            kasimas(
+                                k.blokas,
+                                k.iskastas,
+                                chrono::seconds(5),
+                                k.laikas
+                            );
+                        }
+                    }
+
+                    trukme += chrono::seconds(5);
+
+                    if (all_of(kandidatai.begin(), kandidatai.end(),
+                        [](const Kandidatas& k) {
+                            return k.iskastas;
+                        }))
+                    {
+                        break;
+                    }
+                }
+                auto greiciausias = kandidatai.end();
+
+                for (auto i = kandidatai.begin(); i != kandidatai.end(); ++i)
+                {
+                    if (i->iskastas &&
+                        (greiciausias == kandidatai.end() ||
+                        i->laikas < greiciausias->laikas))
+                    {
+                        greiciausias = i;
+                    }
+                }
                 Blokas naujas_blokas;
                 deque<Transakcija>transakciju_kopija_originali;
                 map<string, Vartotojas>vartotoju_kopija_originali;
-                if(laikas1<laikas2 && laikas1<laikas3 && laikas1<laikas4 && laikas1<laikas5)
+                if (greiciausias != kandidatai.end())
                 {
-                    naujas_blokas=naujas_blokas1;
-                    transakciju_kopija_originali=transakciju_kopija1;
-                    vartotoju_kopija_originali=vartotoju_kopija1;
-                }
-                else if(laikas2<laikas1 && laikas2<laikas3 && laikas2<laikas4 && laikas2<laikas5)
-                {
-                    naujas_blokas=naujas_blokas2;
-                    transakciju_kopija_originali=transakciju_kopija2;
-                    vartotoju_kopija_originali=vartotoju_kopija2;
-                }
-                else if(laikas3<laikas1 && laikas3<laikas2 && laikas3<laikas4 && laikas3<laikas5)
-                {
-                    naujas_blokas=naujas_blokas3;
-                    transakciju_kopija_originali=transakciju_kopija3;
-                    vartotoju_kopija_originali=vartotoju_kopija3;
-                }
-                else if(laikas4<laikas1 && laikas4<laikas2 && laikas4<laikas3 && laikas2<laikas5)
-                {
-                    naujas_blokas=naujas_blokas4;
-                    transakciju_kopija_originali=transakciju_kopija4;
-                    vartotoju_kopija_originali=vartotoju_kopija4;
+                    naujas_blokas = greiciausias->blokas;
 
+                    transakciju_kopija_originali = greiciausias->transakcijos;
+
+                    vartotoju_kopija_originali = greiciausias->vartotojai;
                 }
-                else 
+                else
                 {
-                    naujas_blokas=naujas_blokas5;
-                    transakciju_kopija_originali=transakciju_kopija5;
-                    vartotoju_kopija_originali=vartotoju_kopija5;
+                    cout << "Nepavyko iskasti nei vienam kandidatui." << endl;
                 }
+
+                // Blokas naujas_blokas;
+                // deque<Transakcija>transakciju_kopija_originali;
+                // map<string, Vartotojas>vartotoju_kopija_originali;
+                // if(laikas1<laikas2 && laikas1<laikas3 && laikas1<laikas4 && laikas1<laikas5)
+                // {
+                //     naujas_blokas=naujas_blokas1;
+                //     transakciju_kopija_originali=transakciju_kopija1;
+                //     vartotoju_kopija_originali=vartotoju_kopija1;
+                // }
+                // else if(laikas2<laikas1 && laikas2<laikas3 && laikas2<laikas4 && laikas2<laikas5)
+                // {
+                //     naujas_blokas=naujas_blokas2;
+                //     transakciju_kopija_originali=transakciju_kopija2;
+                //     vartotoju_kopija_originali=vartotoju_kopija2;
+                // }
+                // else if(laikas3<laikas1 && laikas3<laikas2 && laikas3<laikas4 && laikas3<laikas5)
+                // {
+                //     naujas_blokas=naujas_blokas3;
+                //     transakciju_kopija_originali=transakciju_kopija3;
+                //     vartotoju_kopija_originali=vartotoju_kopija3;
+                // }
+                // else if(laikas4<laikas1 && laikas4<laikas2 && laikas4<laikas3 && laikas2<laikas5)
+                // {
+                //     naujas_blokas=naujas_blokas4;
+                //     transakciju_kopija_originali=transakciju_kopija4;
+                //     vartotoju_kopija_originali=vartotoju_kopija4;
+
+                // }
+                // else 
+                // {
+                //     naujas_blokas=naujas_blokas5;
+                //     transakciju_kopija_originali=transakciju_kopija5;
+                //     vartotoju_kopija_originali=vartotoju_kopija5;
+                // }
                 
                 // naujas_blokas.nonce=0;
                 // size_t bandymai=0;
@@ -814,7 +912,7 @@ int main()
                             galioja = false;
                             break;
                         }
-                        if(t.transaction_id.size()!=64 && all_of(t.transaction_id.begin(), t.transaction_id.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); })==0)
+                        if(t.transaction_id.size()!=64 || all_of(t.transaction_id.begin(), t.transaction_id.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); })==0)
                         {
                             galioja = false;
                             break;
@@ -829,7 +927,7 @@ int main()
                             galioja = false;
                             break;
                         }
-                        if(siuntejas->second.balansas()<t.amount && siuntejas->second.balansas()+t.amount<=SIZE_MAX && naujas_blokas.version==1 && naujas_blokas.timestamp>=0)
+                        if(siuntejas->second.balansas()<t.amount || siuntejas->second.balansas()+t.amount>SIZE_MAX || naujas_blokas.version!=1 || naujas_blokas.timestamp<0)
                         {
                             galioja=false;
                             break;
