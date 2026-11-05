@@ -178,14 +178,16 @@ Pagrindiniai skirtumai:
 
 # Versija: `v0.3`
 
-Dirbtiniu intelektu bandiau tobulinti transakcijų atrinkimą ir kasimo ciklą, testus.
+Dirbtiniu intelektu bandžiau tobulinti transakcijų atrinkimą ir kasimo ciklą, testus.
 
-Nors patobulinus kodą viskas veikia tesisingai, sparta kaip tik sumažėjo.
+Nors patobulinus kodą viskas veikia teisingai, sparta kaip tik sumažėjo.
 
 Pavyzdys prieš patobulinimą:
+
 ![alt text](<Screenshot 2026-11-05 042420.png>)
 
 Pavyzdys po patobulinimo:
+
 ![alt text](<Screenshot 2026-11-05 055002.png>)
 
 Svarbu akcentuoti tai, jog SEED naudojimas užtikrina tos pačios skaičių sekos generavimą kiekvieno programos paleidimo metu, tačiau dėl laiko matavimo skirtumo kandidatų kasime kiekvieną kartą paleidus programą su tais pačiais duomenimis, galime gauti skirtingus blokus grandinėse.
