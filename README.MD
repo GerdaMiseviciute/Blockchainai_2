@@ -80,3 +80,76 @@ Programos dabartinis kodas sukuria:
 ## Galutinė suvestinė
 
 ![alt text](<Screenshot 2026-10-29 063825.png>)
+
+
+# Versija: `v0.2`
+
+## Merkle medis
+
+Kiekvieno bloko transakcijoms sudaromas Merkle medis.
+
+Pirmiausia apskaičiuojamos atskirų transakcijų maišos reikšmės. Tuomet jos poromis jungiamos ir pakartotinai maišomos, kol gaunama viena galutinė reikšmė – Merkle šaknis (`tx_root`).
+
+Merkle medžio lapai yra transakcijų ID, išdėstyti ta tvarka, kuria jie įtraukti į bloką.
+
+Vidinis mazgas skaičiuojamas taip:
+
+``` cpp
+parent = H(left_child + "|" + right_child)
+```
+
+Jei lygyje lieka nelyginis skaičius mazgų, paskutinis mazgas poruojamas pats su savimi:
+
+``` cpp
+H(last_node + "|" + last_node)
+```
+
+Jei bloke yra tik viena transakcija, jos ID yra Merkle šaknis. Tuščiam Genesis blokui naudojama atskira taisyklė:
+
+``` cpp
+Genesis.tx_root = funkcija("");
+```
+
+## Kandidatinių blokų konkurencija
+
+Realizuojama penkių kandidatinių blokų konkurencijos simuliacija.
+
+Kiekvienam kandidatui sudaromas atskiras bloko variantas. Kandidatai bando rasti tinkamą `nonce` reikšmę ir gauti reikalavimus atitinkančią maišos reikšmę.
+
+Sėkmingai iškastų kandidatų rezultatai palyginami. Pasirenkamas greičiausiai iškastas blokas, o nelaimėjusių kandidatų duomenys ir būsenos nėra naudojami kaip patvirtintos grandinės būsena.
+
+## Kandidatų bandymų ir laiko suvestinė
+
+Kandidatų kasimo rezultatai (vieno bloko pavyzdys)
+
+| Kandidatas | Kasimo laikas | Nonce | Rezultatas |
+|---|---:|---:|---|
+| 1 | 1.34631 s | 5941 | Iškastas |
+| 2 | 2.79008 | 12383 | Iškastas |
+| 3 | 0.138947 | 606 | Iškastas |
+| 4 | 4.52112 | 21424 | Iškastas |
+| 5 | 1.29145 | 21424 | Iškastas |
+
+Kasimo laikas matuojamas naudojant `std::chrono`.
+
+## Teisingumo testų vykdymas
+
+Atliekami bendri teisingumo testai, skirti patikrinti Merkle medžio sudarymą, transakcijų apdorojimą ir blokų validavimą.
+
+![alt text](image.png)
+
+## 6. Kodėl tai nėra tikras P2P konsensusas?
+
+Šiame projekte realizuojama blokų kasimo konkurencijos simuliacija, tačiau ji nėra lygiavertė tikram P2P blokų grandinės konsensusui.
+
+Pagrindiniai skirtumai:
+
+1. **Nėra P2P tinklo.** Programa veikia viename procese, todėl kandidatai nėra atskiri tinklo mazgai, bendraujantys per tinklą.
+
+2. **Nėra nepriklausomų grandinės kopijų.** Visi kandidatai veikia bendroje programos aplinkoje, o ne palaiko atskiras, savarankiškai sinchronizuojamas blokų grandinės kopijas.
+
+3. **Nėra tikro konsensuso protokolo.** Kandidatų rezultatai palyginami programos viduje pagal iš anksto nustatytą taisyklę. Nėra atskiro mazgų susitarimo dėl galiojančios grandinės.
+
+4. **Nerealizuojami šakų persitvarkymai.** Jei skirtingi tinklo mazgai iškastų skirtingus blokus tame pačiame aukštyje, tikrame tinkle galėtų susidaryti skirtingos grandinės šakos. Šiame projekte toks procesas neimituojamas.
+
+5. **Nerealizuojamas tikras Bitcoin kasimas.** Naudojamas supaprastintas Proof of Work mechanizmas, kuriame tikrinamas nustatytas maišos pradžios nulių skaičius. Nenaudojamas tikras Bitcoin tinklo sudėtingumo reguliavimas, atlygis ar kitos protokolo taisyklės.
