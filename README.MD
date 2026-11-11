@@ -202,7 +202,8 @@ Svarbu akcentuoti tai, jog SEED naudojimas užtikrina tos pačios skaičių seko
 
 ## Merkle medis su Libbitcoin
 
-| Parametras	| Tavo aplinka |
+| Parametras | Tavo aplinka |
+|---|---|
 | Biblioteka | libbitcoin-system |
 | Versija | 3.8.0 |
 | Bibliotekos commit | a012c9b7219fb2b85ecbc981a4982eecdd37263a |
