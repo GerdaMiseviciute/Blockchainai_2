@@ -1,7 +1,8 @@
 #include <iostream>
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
-#include <openssl/evp.h>
+// #include <openssl/evp.h>
+#include <bitcoin/system.hpp>
 #include <ctime>
 #include <limits>
 #include <random>
@@ -15,10 +16,21 @@
 #include <map>
 #include <sstream>
 #include <iomanip>
-#include <windows.h>
+#include <algorithm>
+// #ifdef _WIN32
+//     #include <windows.h>
+// #else
+//     #include <unistd.h>
+// #endif
+#include <clocale>
+
+#ifdef _WIN32
+    #include <windows.h>
+#endif
 using namespace std;
 using namespace chrono;
 using namespace boost::multiprecision;
+using namespace libbitcoin;
 
 const uint64_t SEED = 123456789ULL;
 
@@ -132,6 +144,44 @@ string merkle_root(vector<string>hashes)
         hashes=naujas_lygis;
     }
     return hashes[0];
+}
+string bitcoin_merkle_root(vector<string>hashes)
+{
+    if(hashes.empty())
+        throw std::invalid_argument("Merkle medis negali buti tuscias");
+    vector<hash_digest>lygis;
+    for(size_t i=0; i<hashes.size(); i++)
+    {
+        data_chunk baitai;
+        if (!decode_base16(baitai, hashes[i]))
+        {
+            throw std::invalid_argument("Neteisingas HEX formatas");
+        }
+        if(baitai.size()!=32)
+            throw std::invalid_argument("Neteisingas TXID ilgis");
+        std::reverse(baitai.begin(), baitai.end());
+
+        hash_digest lapas{};
+        std::copy(baitai.begin(), baitai.end(), lapas.begin());
+
+        lygis.push_back(lapas);
+    }
+    while(lygis.size()>1)
+    {
+        vector<hash_digest>naujas_lygis;
+        for(size_t i=0; i<lygis.size(); i+=2)
+        {
+            data_chunk duomenys;
+            duomenys.insert(duomenys.end(), lygis[i].begin(), lygis[i].end());
+            if(i+1==lygis.size())
+                duomenys.insert(duomenys.end(), lygis[i].begin(), lygis[i].end());
+            else duomenys.insert(duomenys.end(), lygis[i+1].begin(), lygis[i+1].end());
+            naujas_lygis.push_back(bitcoin_hash(duomenys));
+        }
+        lygis=naujas_lygis;
+    }
+    std::reverse(lygis[0].begin(), lygis[0].end());
+    return encode_base16(lygis[0]);
 }
 void transakciju_atrinkimas(Kandidatas&k, vector<Blokas>&blockchain)
 {
@@ -471,20 +521,25 @@ void testoRezultatas(const string& pavadinimas, bool sekmingas)
 int main()
 {
     srand(static_cast<unsigned>(SEED));
-    SetConsoleCP(CP_UTF8);        // konsolės įvestis → UTF-8
-    SetConsoleOutputCP(CP_UTF8);
+    #ifdef _WIN32
+        SetConsoleCP(CP_UTF8);
+        SetConsoleOutputCP(CP_UTF8);
+    #else
+        setlocale(LC_ALL, "");
+    #endif
     int choice;
     cout<<"===Meniu==="<<endl;
     cout<<"1. Generuoti vartotojus ir transakcijas"<<endl;
     cout<<"2. Kasti blokus"<<endl;
     cout<<"3. Vykdyti teisingumo testus"<<endl;
+    cout<<"4. Testuoti Bitcoin merkle"<<endl;
     while(true)
     {
         try
         {
             cin>>choice;
-            if(cin.fail() || choice<1 || choice>3)
-                throw std::runtime_error("Iveskite skaiciu 1-3: ");
+            if(cin.fail() || choice<1 || choice>4)
+                throw std::runtime_error("Iveskite skaiciu 1-4: ");
 
             cin.ignore(1000, '\n');
             break;
@@ -501,7 +556,7 @@ int main()
         case 1:
         {
             //  Vartotojų kūrimas
-            ofstream fr("vartotojai.txt");
+            std::ofstream fr("vartotojai.txt");
             map<string, Vartotojas>vartotojai;
             fr<<left<<setw(25)<<"Vardas"<<setw(20)<<"Balansas"<<setw(20)<<"Viešas raktas"<<endl;
             for(size_t i=0; i<1000; i++)
@@ -568,7 +623,7 @@ int main()
             fr.close();
             //Transakciju kurimas
             deque<Transakcija>transakcijos;
-            ofstream fr1("transakcijos.txt");
+            std::ofstream fr1("transakcijos.txt");
             fr1<<left<<setw(25)<<"Siuntėjas"<<setw(20)<<"Gavėjas"<<setw(20)<<"Suma"<<setw(10)<<"Sequence"<<setw(20)<<"Transaction_id"<<endl;
             for(size_t i=0; i<10000; i++)
             {
@@ -588,8 +643,29 @@ int main()
         }
         case 2:
         {
-            ifstream fd("vartotojai.txt");
-            ifstream fd1("transakcijos.txt");
+            cout<<"1. Nuosavos maišos režimas"<<endl;
+            cout<<"2. Bitcoin SHA256d režimas"<<endl;
+            int rezimas;
+            while(true)
+            {
+                try
+                {
+                    cin>>rezimas;
+                    if(cin.fail() || rezimas<1 || rezimas>2)
+                        throw std::runtime_error("Iveskite skaiciu 1-2: ");
+
+                    cin.ignore(1000, '\n');
+                    break;
+                }
+                catch(const std::exception& e)
+                {
+                    cerr<<"Klaida! "<<e.what()<<endl;
+                    cin.clear();
+                    cin.ignore(1000, '\n');
+                }
+            }
+            std::ifstream fd("vartotojai.txt");
+            std::ifstream fd1("transakcijos.txt");
             size_t pradine_balansu_suma=0, galutine_balansu_suma=0;
             deque<Transakcija>transakcijos;
             map<string, Vartotojas>vartotojai;
@@ -719,8 +795,9 @@ int main()
                 for (auto& k : kandidatai)
                 {
                     transakciju_atrinkimas(k, blockchain);
-
-                    k.blokas.tx_root = merkle_root(k.lapai);
+                    if(rezimas==1)
+                        k.blokas.tx_root = merkle_root(k.lapai);
+                    else k.blokas.tx_root = bitcoin_merkle_root(k.lapai);
 
                     k.blokas.timestamp =
                         chrono::duration_cast<chrono::seconds>(
@@ -778,7 +855,9 @@ int main()
                             kandidatai[i].vartotojai = vartotojai;
                             kandidatai[i].lapai.clear();
                             transakciju_atrinkimas(kandidatai[i], blockchain);
-                            kandidatai[i].blokas.tx_root = merkle_root(kandidatai[i].lapai);
+                            if(rezimas==1)
+                                kandidatai[i].blokas.tx_root = merkle_root(kandidatai[i].lapai);
+                            else kandidatai[i].blokas.tx_root = bitcoin_merkle_root(kandidatai[i].lapai);
 
                             kandidatai[i].blokas.timestamp =chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         }
@@ -963,7 +1042,11 @@ int main()
                         // visu_transakciju_id1+=t.transaction_id;
                         kopijos_lapai.push_back(t.transaction_id);
                     }
-                    if(galioja && naujas_blokas.tx_root==merkle_root(kopijos_lapai) && all_of(naujas_blokas.tx_root.begin(), naujas_blokas.tx_root.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); })==1)
+                    string saknis;
+                    if(rezimas==1)
+                        saknis=merkle_root(kopijos_lapai);
+                    else saknis=bitcoin_merkle_root(kopijos_lapai);
+                    if(galioja && naujas_blokas.tx_root==saknis && all_of(naujas_blokas.tx_root.begin(), naujas_blokas.tx_root.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); })==1)
                     {
                         itrauktos_transakcijos+=naujas_blokas.bloko_transakcijos.size();
                         blockchain.push_back(naujas_blokas);
@@ -1361,6 +1444,71 @@ int main()
 
             cout << "\n========== TESTAI BAIGTI ==========\n";
             break;
+        }
+        case 4:
+        {
+            //Naudotas Bitcoin mainnet 100 000-ojo bloko TXID sąrašas
+            vector<string>txid={"8c14f0db3df150123e6f3dbbf30f8b955a8249b62ac1d1ff16284aefa3d06d87", 
+                "fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4",
+                "6359f0868171b1d194cbee1af2f16ea598ae8fad666d9b012c8ed2b79a236ec4",
+                "e9a66845e05d5abc0ad04ec80f774a7e585c6e8db975962d069a522137b80c1d"};
+            bool sekmingas1=false, sekmingas2=false, sekmingas3=false, sekmingas4=false, sekmingas5=false, sekmingas6=false, sekmingas7=false, sekmingas8=false;
+            if(bitcoin_merkle_root(txid)=="f3e94742aca4b5ef85488dc37c06c3282295ffec960994b2c0d5ac2a25a95766")
+                sekmingas1=true;
+
+            string A(64, 'a');
+            string B(64, 'b');
+            string C(64, 'c');
+            string D(64, 'd');
+            string E(64, 'e');
+
+            string root1=bitcoin_merkle_root({A});
+            if(root1==A)
+                sekmingas2=true;
+
+            string root2=bitcoin_merkle_root({A, B});
+            if(root2.size()==64)
+                sekmingas3=true;
+
+            string root3=bitcoin_merkle_root({A, B, C});
+            string root3_duplicated=bitcoin_merkle_root({A, B, C, C});
+            if(root3==root3_duplicated)
+                sekmingas4=true;
+
+            string root5=bitcoin_merkle_root({A, B, C, D, E});
+            string root5_duplicated=bitcoin_merkle_root({A, B, C, D, E, E});
+            if(root5==root5_duplicated)
+                sekmingas5=true;
+
+            string nepakeistas=bitcoin_merkle_root({A, B, C});
+            string pakeistas_C=C;
+            pakeistas_C[0]='f';
+            string pakeistas=bitcoin_merkle_root({A, B, pakeistas_C});
+            if(pakeistas!=nepakeistas)
+                sekmingas6=true;
+
+            string root_swapped=bitcoin_merkle_root({B, A, C});
+            if(root3!=root_swapped)
+                sekmingas7=true;
+
+            try
+            {
+                bitcoin_merkle_root({"abc"});
+            }
+            catch (const std::invalid_argument&)
+            {
+                sekmingas8=true;
+            }
+            
+
+            testoRezultatas("RCP rinkinio testas", sekmingas1);
+            testoRezultatas("Vieno lapo rinkinys", sekmingas2);
+            testoRezultatas("Dviejų lapų rinkinys", sekmingas3);
+            testoRezultatas("Trijų lapų rinkinys", sekmingas4);
+            testoRezultatas("Penkių lapų rinkinys", sekmingas5);
+            testoRezultatas("Pakeisto lapo rinkinys", sekmingas6);
+            testoRezultatas("Sukeistų lapų rinkinys", sekmingas7);
+            testoRezultatas("Neteisingo hex ilgio rinkinys", sekmingas8);
         }
     }
     return 0;

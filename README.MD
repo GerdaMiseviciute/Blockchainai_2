@@ -198,3 +198,26 @@ Svarbu akcentuoti tai, jog SEED naudojimas užtikrina tos pačios skaičių seko
 - Padaryti v0.3 versiją
 - Pildyti README failą
 
+# 3 laboratorinis darbas
+
+## Merkle medis su Libbitcoin
+
+| Parametras	| Tavo aplinka |
+| Biblioteka | libbitcoin-system |
+| Versija | 3.8.0 |
+| Bibliotekos commit | a012c9b7219fb2b85ecbc981a4982eecdd37263a |
+| Šaka | version3 |
+| Kompiliatorius | GCC 15.2.0 |
+| Build sistema | CMake 4.2.3 |
+| Boost	| 1.73.0 |
+| Diegimo aplinka | WSL Ubuntu |
+
+Kompiliavimo komanda:
+
+``` cpp
+LD_LIBRARY_PATH=/home/usergerda/libbitcoin/lib ./programalibbitcoin-system) -o programa
+```
+
+Merkle šasknies teisingumo testai:
+
+![alt text](image-1.png)
