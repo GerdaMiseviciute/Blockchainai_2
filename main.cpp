@@ -859,7 +859,7 @@ int main()
                                 kandidatai[i].blokas.tx_root = merkle_root(kandidatai[i].lapai);
                             else kandidatai[i].blokas.tx_root = bitcoin_merkle_root(kandidatai[i].lapai);
 
-                            kandidatai[i].blokas.timestamp =chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+                            kandidatai[i].blokas.timestamp=chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
                         }
                     }
                 }

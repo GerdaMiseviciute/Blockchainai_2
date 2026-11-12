@@ -192,7 +192,7 @@ Pavyzdys po patobulinimo:
 
 Svarbu akcentuoti tai, jog SEED naudojimas užtikrina tos pačios skaičių sekos generavimą kiekvieno programos paleidimo metu, tačiau dėl laiko matavimo skirtumo kandidatų kasime kiekvieną kartą paleidus programą su tais pačiais duomenimis, galime gauti skirtingus blokus grandinėse.
 
-### Dirbtinis intelektas (chatGPT, Perplexity) padėjo:
+### Dirbtinis intelektas (chatGPT, Perplexity, Claude) padėjo:
 - Suprasti užduoties reikalavimus, išsiaiškinti principus
 - Generuoti abstrakčias idėjas
 - Padaryti v0.3 versiją
@@ -216,7 +216,8 @@ Svarbu akcentuoti tai, jog SEED naudojimas užtikrina tos pačios skaičių seko
 Kompiliavimo komanda:
 
 ``` cpp
-LD_LIBRARY_PATH=/home/usergerda/libbitcoin/lib ./programalibbitcoin-system) -o programa
+g++ -std=c++20 -I"$HOME/libbitcoin/include" main.cpp $(pkg-config --cflags --libs libbitcoin-system) -o programa
+LD_LIBRARY_PATH=/home/usergerda/libbitcoin/lib ./programa
 ```
 
 Merkle šasknies teisingumo testai:

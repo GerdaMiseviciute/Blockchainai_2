@@ -1,6 +1,0 @@
-*.txt
-*.exe
-
-.vscode/
-*.code-workspace
-build/
